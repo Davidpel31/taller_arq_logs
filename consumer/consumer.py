@@ -1,94 +1,48 @@
-import pika
-import psycopg2
-import json
 import time
+import psycopg2
+import os
 
-# Configuración de conexión
-RABBITMQ_HOST = "rabbitmq"
-POSTGRES_HOST = "postgres"
-POSTGRES_DB = "weather_db"
-POSTGRES_USER = "admin"
-POSTGRES_PASSWORD = "admin123"
+# Configuración de conexión a PostgreSQL
+DB_HOST = os.getenv("DATABASE_HOST", "postgres")
+DB_PORT = int(os.getenv("DATABASE_PORT", 5432))
+DB_USER = os.getenv("DATABASE_USER", "admin")
+DB_PASSWORD = os.getenv("DATABASE_PASSWORD", "admin123")
+DB_NAME = os.getenv("DATABASE_NAME", "weather_db")
 
-EXCHANGE_NAME = "weather_exchange"
-QUEUE_NAME = "weather_queue"
-
-
-def connect_postgres():
-    """Conexión a PostgreSQL con reintentos."""
-    while True:
-        try:
-            conn = psycopg2.connect(
-                host=POSTGRES_HOST,
-                database=POSTGRES_DB,
-                user=POSTGRES_USER,
-                password=POSTGRES_PASSWORD
-            )
-            conn.autocommit = True
-            print("✅ Conectado a PostgreSQL")
-            return conn
-        except Exception as e:
-            print("❌ Error al conectar a PostgreSQL, reintentando...", e)
-            time.sleep(5)
-
-
-def connect_rabbitmq():
-    """Conexión a RabbitMQ con reintentos."""
-    while True:
-        try:
-            connection = pika.BlockingConnection(
-                pika.ConnectionParameters(host=RABBITMQ_HOST)
-            )
-            channel = connection.channel()
-
-            channel.queue_declare(queue=QUEUE_NAME, durable=True)
-            channel.basic_qos(prefetch_count=1)
-
-            print("✅ Conectado a RabbitMQ")
-            return connection, channel
-        except Exception as e:
-            print("❌ Esperando RabbitMQ...", e)
-            time.sleep(5)
-
-
-def save_to_db(conn, data):
-    """Guarda los datos validados en la tabla weather_logs."""
-    with conn.cursor() as cursor:
-        cursor.execute("""
-    INSERT INTO weather_logs (station_id, temperature, humidity, pressure, created_at)
-    VALUES (%s, %s, %s, %s, NOW());
-""", (data["station_id"], data["temperature"], data["humidity"], data["pressure"]))
-
-
-def callback(ch, method, properties, body):
-    """Procesa cada mensaje recibido."""
+# Esperar hasta que PostgreSQL esté listo
+while True:
     try:
-        data = json.loads(body)
-        print(f"📩 Recibido: {data}")
-
-        # Validación básica
-        if not (-50 <= data["temperature"] <= 60):
-            raise ValueError("Temperatura fuera de rango")
-        if not (0 <= data["humidity"] <= 100):
-            raise ValueError("Humedad fuera de rango")
-        if not (850 <= data["pressure"] <= 1100):
-            raise ValueError("Presión fuera de rango")
-
-        save_to_db(conn, data)
-        print("💾 Guardado en PostgreSQL")
-
-        ch.basic_ack(delivery_tag=method.delivery_tag)
-
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            dbname=DB_NAME
+        )
+        cur = conn.cursor()
+        print("Conexión establecida con PostgreSQL", flush=True)
+        break
     except Exception as e:
-        print(f"⚠️ Error procesando mensaje: {e}")
-        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        print(f"Error al conectar a PostgreSQL: {e}. Reintentando en 3 segundos...", flush=True)
+        time.sleep(3)
 
+# Último id leído
+last_id = 0
 
-if __name__ == "__main__":
-    conn = connect_postgres()
-    connection, channel = connect_rabbitmq()
+while True:
+    try:
+        # Traer nuevos logs desde la última lectura
+        cur.execute(
+            "SELECT id, estacion_id, temperatura, humedad, timestamp FROM logs WHERE id > %s ORDER BY id ASC",
+            (last_id,)
+        )
+        rows = cur.fetchall()
+        for row in rows:
+            print(f"[Consumer] Nuevo log: {row}", flush=True)
+            last_id = row[0]  # Actualizar el último id leído
+    except Exception as e:
+        print(f"[Consumer] Error al leer logs: {e}", flush=True)
+        conn.rollback()  # Reinicia la transacción si hay error
 
-    channel.basic_consume(queue=QUEUE_NAME, on_message_callback=callback)
-    print("👂 Esperando mensajes...")
-    channel.start_consuming()
+    time.sleep(5)  # Esperar 5 segundos antes de consultar de nuevo
 

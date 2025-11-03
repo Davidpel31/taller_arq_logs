@@ -1,57 +1,48 @@
-import pika
-import json
 import time
 import random
+import psycopg2
+import os
 
-# Configuración de conexión a RabbitMQ
-RABBITMQ_HOST = "rabbitmq"
-EXCHANGE_NAME = "weather_exchange"
-ROUTING_KEY = "weather.data"
-QUEUE_NAME = "weather_queue"
+# Configuración de conexión a PostgreSQL desde variables de entorno o por defecto
+DB_HOST = os.getenv("DATABASE_HOST", "postgres")
+DB_PORT = int(os.getenv("DATABASE_PORT", 5432))
+DB_USER = os.getenv("DATABASE_USER", "admin")
+DB_PASSWORD = os.getenv("DATABASE_PASSWORD", "admin123")
+DB_NAME = os.getenv("DATABASE_NAME", "weather_db")
 
-def connect_rabbitmq():
-    """Crea una conexión y canal con RabbitMQ, con reintento automático."""
-    while True:
-        try:
-            connection = pika.BlockingConnection(
-                pika.ConnectionParameters(host=RABBITMQ_HOST)
-            )
-            channel = connection.channel()
-
-            # Declarar exchange y cola durables
-            channel.exchange_declare(exchange=EXCHANGE_NAME, exchange_type="direct", durable=True)
-            channel.queue_declare(queue=QUEUE_NAME, durable=True)
-            channel.queue_bind(exchange=EXCHANGE_NAME, queue=QUEUE_NAME, routing_key=ROUTING_KEY)
-
-            return connection, channel
-        except Exception as e:
-            print("Esperando que RabbitMQ esté disponible...", e)
-            time.sleep(5)
-
-def generate_weather_data():
-    """Genera datos simulados de estación meteorológica."""
-    return {
-        "station_id": f"station_{random.randint(1,5)}",
-        "temperature": round(random.uniform(-5, 45), 2),
-        "humidity": round(random.uniform(10, 100), 2),
-        "pressure": round(random.uniform(900, 1100), 2)
-    }
-
-if __name__ == "__main__":
-    connection, channel = connect_rabbitmq()
-
-    print("📡 Enviando datos meteorológicos...")
-    while True:
-        data = generate_weather_data()
-        message = json.dumps(data)
-
-        channel.basic_publish(
-            exchange=EXCHANGE_NAME,
-            routing_key=ROUTING_KEY,
-            body=message,
-            properties=pika.BasicProperties(
-                delivery_mode=2  # Hace el mensaje persistente
-            )
+# Esperar hasta que PostgreSQL esté listo
+while True:
+    try:
+        conn = psycopg2.connect(
+            host=DB_HOST,
+            port=DB_PORT,
+            user=DB_USER,
+            password=DB_PASSWORD,
+            dbname=DB_NAME
         )
-        print(f"📤 Enviado: {message}")
+        cur = conn.cursor()
+        print("Conexión establecida con PostgreSQL", flush=True)
+        break
+    except Exception as e:
+        print(f"Error al conectar a PostgreSQL: {e}. Reintentando en 3 segundos...", flush=True)
         time.sleep(3)
+
+# Bucle principal de envío de datos
+while True:
+    estacion_id = random.randint(1, 5)
+    temperatura = round(random.uniform(20, 35), 2)
+    humedad = round(random.uniform(30, 80), 2)
+
+    try:
+        cur.execute(
+            "INSERT INTO logs (estacion_id, temperatura, humedad) VALUES (%s, %s, %s)",
+            (estacion_id, temperatura, humedad)
+        )
+        conn.commit()
+        print(f"[Producer] Dato enviado: estacion_id={estacion_id}, temperatura={temperatura}, humedad={humedad}", flush=True)
+    except Exception as e:
+        print(f"[Producer] Error al insertar dato: {e}", flush=True)
+        conn.rollback()  # Reinicia la transacción para poder seguir insertando
+
+    time.sleep(5)  # Esperar 5 segundos antes de enviar el siguiente dato
+

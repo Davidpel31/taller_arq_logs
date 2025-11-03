@@ -1,9 +1,7 @@
-CREATE TABLE IF NOT EXISTS weather_logs (
+CREATE TABLE IF NOT EXISTS logs (
     id SERIAL PRIMARY KEY,
-    station_id VARCHAR(50) NOT NULL,
-    temperature NUMERIC(5,2) NOT NULL,
-    humidity NUMERIC(5,2) NOT NULL,
-    pressure NUMERIC(6,2) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    estacion_id INT NOT NULL,
+    temperatura FLOAT NOT NULL,
+    humedad FLOAT NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-
