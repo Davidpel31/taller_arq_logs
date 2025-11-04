@@ -1,0 +1,146 @@
+guía de como usar proyecto
+
+antes que todo debemos tener iniciado docker en nuestro PC
+
+-----------------------------🧱 1️⃣ Levantar todo el sistema
+
+Desde la carpeta raíz del proyecto (C:\taller_arq_logs):
+
+# Levantar todos los contenedores
+
+docker compose up -d
+
+🟢 Esto levantará:
+
+postgres (base de datos)
+rabbitmq (broker de mensajería)
+producer (simulador de datos)
+consumer (procesador de datos)
+
+Si hiciste cambios en el código, usa:
+docker compose up --build -d
+
+---
+
+-----------------------------🧾 2️⃣ Verificar que los contenedores estén corriendo
+
+docker ps
+
+---
+
+-----------------------------🐇 3️⃣ Acceder al panel de RabbitMQ
+
+📍 URL:
+👉 [http://localhost:15672](http://localhost:15672)
+
+🔐 Credenciales:
+
+user: admin
+password: admin123
+
+Ahí podrás ver:
+
+Exchanges (productores publican aquí)
+Queues (colas donde el consumidor recibe)
+Bindings (conexiones entre exchanges y colas)
+Mensajes pendientes y procesados
+
+---
+
+-----------------------------🐘 4️⃣ Acceder a PostgreSQL desde DBeaver
+
+Configuración de conexión:
+
+| Campo    | Valor      |
+| -------- | ---------- |
+| Host     | localhost  |
+| Port     | 5432       |
+| Database | weather_db |
+| Username | admin      |
+| Password | admin123   |
+
+---
+
+-----------------------------🧩 5️⃣ Verificar que las tablas existen
+
+Desde la terminal
+docker exec -it postgres psql -U admin -d weather_db
+
+Y luego ejecuta:
+
+\dt
+
+Debe aparecer:
+
+public | logs          | table | admin
+public | weather_logs  | table | admin
+
+---
+
+-----------------------------📋 6️⃣ Verificar que hay registros insertados
+
+Dentro del cliente psql:
+
+SELECT * FROM weather_logs ORDER BY id DESC LIMIT 10;
+
+Deberías ver filas con datos como temperatura, humedad y timestamp.
+
+---
+
+-----------------------------🔍 7️⃣ Ver los logs de los servicios
+
+# Logs en tiempo real:
+
+docker logs -f producer
+docker logs -f consumer
+docker logs -f postgres
+docker logs -f rabbitmq
+
+Deberías ver mensajes como:
+
+✅ Mensaje publicado en RabbitMQ
+📥 Mensaje recibido y procesado correctamente
+💾 Registro insertado en PostgreSQL
+
+---
+
+-----------------------------🔁 8️⃣ Detener o reiniciar todo
+
+# Detener contenedores
+
+docker compose down
+
+# Reiniciar todo el sistema
+
+docker compose restart
+
+---
+
+-----------------------------🧠 9️⃣ Si apagas el PC y lo vuelves a encender
+
+Solo ejecuta:
+
+cd C:\taller_arq_logs
+docker compose up -d
+
+Y todo volverá a la vida automáticamente (con los datos guardados gracias al volumen postgres_data).
+
+---
+
+-----------------------------🧩 10️⃣ Consultas útiles en la base de datos
+
+# Últimos registros insertados
+
+SELECT * FROM weather_logs ORDER BY id DESC LIMIT 5;
+
+# Promedio de temperatura por estación
+
+SELECT estacion_id, AVG(temperatura) FROM weather_logs GROUP BY estacion_id;
+
+# Conteo total de registros
+
+SELECT COUNT(*) FROM weather_logs;
+
+---
+
+
