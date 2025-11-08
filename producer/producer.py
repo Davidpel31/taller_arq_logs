@@ -3,6 +3,17 @@ import random
 import psycopg2
 import os
 
+# Validación de rangos de datos meteorológicos 
+def validar_datos(temperatura, humedad):
+    
+    if not (-50 <= temperatura <= 60):
+        print(f"Temperatura fuera de rango: {temperatura}")
+        return False
+    if not (0 <= humedad <= 100):
+        print(f"Humedad fuera de rango: {humedad}")
+        return False
+    return True
+
 # Configuración de conexión a PostgreSQL desde variables de entorno o por defecto
 DB_HOST = os.getenv("DATABASE_HOST", "postgres")
 DB_PORT = int(os.getenv("DATABASE_PORT", 5432))
@@ -33,6 +44,12 @@ while True:
     temperatura = round(random.uniform(20, 35), 2)
     humedad = round(random.uniform(30, 80), 2)
 
+# Validar antes de guardar en la base de datos
+if not validar_datos(temperatura, humedad):
+    print("[Producer]  Dato descartado por estar fuera de rango", flush=True)
+    time.sleep(2)
+    continue  
+    
     try:
         cur.execute(
             "INSERT INTO logs (estacion_id, temperatura, humedad) VALUES (%s, %s, %s)",
