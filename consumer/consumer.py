@@ -68,18 +68,30 @@ def callback(ch, method, properties, body):
         # Obtener conexión válida
         conn = validar_conexion()
         cursor = conn.cursor()
-        
-        cursor.execute("""
-            INSERT INTO weather_logs (estacion_id, temperatura, humedad, fecha)
-            VALUES (%s, %s, %s, %s)
-        """, (data["estacion_id"], data["temperatura"], data["humedad"], data["fecha"]))
-        conn.commit()
-        logger.info(f"💾 Insertado en BD: {data}")
-        # ACK manual tras persistir en DB
         try:
-            ch.basic_ack(delivery_tag=method.delivery_tag)
-        except Exception:
-            logger.warning("No se pudo hacer basic_ack (posible conexión cerrada)")
+            cursor.execute("""
+                INSERT INTO weather_logs (estacion_id, temperatura, humedad, fecha)
+                VALUES (%s, %s, %s, %s)
+            """, (data["estacion_id"], data["temperatura"], data["humedad"], data["fecha"]))
+            conn.commit()
+            logger.info(f"💾 Insertado en BD: {data}")
+            # ACK manual tras persistir en DB
+            try:
+                ch.basic_ack(delivery_tag=method.delivery_tag)
+            except Exception:
+                logger.warning("No se pudo hacer basic_ack (posible conexión cerrada)")
+        except Exception as e:
+            # Si hay error en la transacción, hacer rollback para limpiar el estado
+            try:
+                conn.rollback()
+            except Exception:
+                logger.warning("No se pudo hacer rollback en la conexión a la DB")
+            raise
+        finally:
+            try:
+                cursor.close()
+            except Exception:
+                pass
         
     except json.JSONDecodeError as e:
         logger.error(f"Error decodificando JSON: {e}")

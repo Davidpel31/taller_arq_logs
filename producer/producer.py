@@ -49,8 +49,8 @@ def publicar_datos():
             channel = connection.channel()
             # Declarar exchange tipo 'topic' para routing por estación
             channel.exchange_declare(exchange='weather.data', exchange_type='topic', durable=True)
-            # Declarar cola y (opcional) asegurar que exista
-            channel.queue_declare(queue=rabbitmq_queue, durable=True)
+            # NOTA: no declaramos la cola en el productor para evitar conflictos con los argumentos
+            # (la cola debe ser creada por el consumidor con los argumentos DLX correspondientes)
             
             logger.info("✅ Conectado a RabbitMQ")
             
