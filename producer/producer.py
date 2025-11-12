@@ -47,6 +47,9 @@ def publicar_datos():
                 )
             )
             channel = connection.channel()
+            # Declarar exchange tipo 'topic' para routing por estación
+            channel.exchange_declare(exchange='weather.data', exchange_type='topic', durable=True)
+            # Declarar cola y (opcional) asegurar que exista
             channel.queue_declare(queue=rabbitmq_queue, durable=True)
             
             logger.info("✅ Conectado a RabbitMQ")
@@ -67,9 +70,10 @@ def publicar_datos():
                         "fecha": datetime.now().isoformat()
                     }
                     
+                    routing_key = f"station.{estacion_id}"
                     channel.basic_publish(
-                        exchange='',
-                        routing_key=rabbitmq_queue,
+                        exchange='weather.data',
+                        routing_key=routing_key,
                         body=json.dumps(log),
                         properties=pika.BasicProperties(delivery_mode=2)  # Mensaje persistente
                     )

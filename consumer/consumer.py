@@ -58,6 +58,11 @@ def callback(ch, method, properties, body):
         # Validar datos
         if not all(key in data for key in ["estacion_id", "temperatura", "humedad", "fecha"]):
             logger.warning(f"⚠️ Datos incompletos: {data}")
+            # Rechazar el mensaje para que pueda ir a DLQ si está configurado
+            try:
+                ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+            except Exception:
+                logger.warning("No se pudo basic_nack tras datos incompletos")
             return
         
         # Obtener conexión válida
@@ -65,16 +70,31 @@ def callback(ch, method, properties, body):
         cursor = conn.cursor()
         
         cursor.execute("""
-            INSERT INTO logs (estacion_id, temperatura, humedad, fecha)
+            INSERT INTO weather_logs (estacion_id, temperatura, humedad, fecha)
             VALUES (%s, %s, %s, %s)
         """, (data["estacion_id"], data["temperatura"], data["humedad"], data["fecha"]))
         conn.commit()
         logger.info(f"💾 Insertado en BD: {data}")
+        # ACK manual tras persistir en DB
+        try:
+            ch.basic_ack(delivery_tag=method.delivery_tag)
+        except Exception:
+            logger.warning("No se pudo hacer basic_ack (posible conexión cerrada)")
         
     except json.JSONDecodeError as e:
         logger.error(f"Error decodificando JSON: {e}")
+        # Rechazar y enviar a DLQ (si existe)
+        try:
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        except Exception:
+            logger.warning("No se pudo basic_nack tras JSONDecodeError")
     except Exception as e:
         logger.error(f"Error al insertar dato: {e}")
+        # Rechazar mensaje para que no se reencole (irá a DLX si está configurado)
+        try:
+            ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+        except Exception:
+            logger.warning("No se pudo basic_nack tras excepción")
 
 def consumir():
     """Inicia el consumidor de mensajes."""
@@ -91,9 +111,25 @@ def consumir():
                 )
             )
             channel = connection.channel()
-            channel.queue_declare(queue=rabbitmq_queue, durable=True)
+            # Declarar exchange principal (topic) y DLX (dead-letter exchange)
+            channel.exchange_declare(exchange='weather.data', exchange_type='topic', durable=True)
+            channel.exchange_declare(exchange='weather.dlx', exchange_type='fanout', durable=True)
+
+            # Declarar cola principal con DLX asociado
+            args = {
+                'x-dead-letter-exchange': 'weather.dlx'
+            }
+            channel.queue_declare(queue=rabbitmq_queue, durable=True, arguments=args)
+            # Enlazar la cola al exchange por patrón station.*
+            channel.queue_bind(queue=rabbitmq_queue, exchange='weather.data', routing_key='station.*')
+
+            # Declarar la cola de DLQ y bind a la exchange DLX
+            channel.queue_declare(queue='logs_dlx', durable=True)
+            channel.queue_bind(queue='logs_dlx', exchange='weather.dlx')
+
             channel.basic_qos(prefetch_count=1)
-            channel.basic_consume(queue=rabbitmq_queue, on_message_callback=callback, auto_ack=True)
+            # Usar ack manual para garantizar entrega
+            channel.basic_consume(queue=rabbitmq_queue, on_message_callback=callback, auto_ack=False)
             
             logger.info("📥 Esperando mensajes...")
             channel.start_consuming()
