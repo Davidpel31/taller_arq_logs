@@ -1,9 +1,11 @@
-FROM python:3.12-slim
+FROM python:3.11
 
 WORKDIR /app
 
-COPY producer.py .
+COPY requirements.txt .
 
-RUN pip install psycopg2-binary
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY producer.py .
 
 CMD ["python", "producer.py"]

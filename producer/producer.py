@@ -1,48 +1,98 @@
+import pika
+import json
 import time
 import random
-import psycopg2
+from datetime import datetime
 import os
+import logging
 
-# Configuración de conexión a PostgreSQL desde variables de entorno o por defecto
-DB_HOST = os.getenv("DATABASE_HOST", "postgres")
-DB_PORT = int(os.getenv("DATABASE_PORT", 5432))
-DB_USER = os.getenv("DATABASE_USER", "admin")
-DB_PASSWORD = os.getenv("DATABASE_PASSWORD", "admin123")
-DB_NAME = os.getenv("DATABASE_NAME", "weather_db")
+# Configurar logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
-# Esperar hasta que PostgreSQL esté listo
-while True:
+# Configuración de RabbitMQ
+rabbitmq_host = os.getenv("RABBITMQ_HOST", "rabbitmq")
+rabbitmq_queue = os.getenv("RABBITMQ_QUEUE", "logs_queue")
+
+# Rango válido de datos meteorológicos
+TEMP_MIN, TEMP_MAX = 15, 35
+HUMIDITY_MIN, HUMIDITY_MAX = 40, 90
+STATION_MIN, STATION_MAX = 1, 5
+
+def validar_datos(estacion_id, temperatura, humedad):
+    """Valida los datos generados."""
+    if not (STATION_MIN <= estacion_id <= STATION_MAX):
+        raise ValueError(f"Estación inválida: {estacion_id}")
+    if not (TEMP_MIN <= temperatura <= TEMP_MAX):
+        raise ValueError(f"Temperatura inválida: {temperatura}")
+    if not (HUMIDITY_MIN <= humedad <= HUMIDITY_MAX):
+        raise ValueError(f"Humedad inválida: {humedad}")
+    return True
+
+def publicar_datos():
+    """Publica datos meteorológicos a RabbitMQ."""
+    max_retries = 5
+    retry = 0
+    
+    while retry < max_retries:
+        try:
+            connection = pika.BlockingConnection(
+                pika.ConnectionParameters(
+                    host=rabbitmq_host,
+                    connection_attempts=5,
+                    retry_delay=2
+                )
+            )
+            channel = connection.channel()
+            channel.queue_declare(queue=rabbitmq_queue, durable=True)
+            
+            logger.info("✅ Conectado a RabbitMQ")
+            
+            while True:
+                try:
+                    estacion_id = random.randint(STATION_MIN, STATION_MAX)
+                    temperatura = round(random.uniform(TEMP_MIN, TEMP_MAX), 2)
+                    humedad = round(random.uniform(HUMIDITY_MIN, HUMIDITY_MAX), 2)
+                    
+                    # Validar datos
+                    validar_datos(estacion_id, temperatura, humedad)
+                    
+                    log = {
+                        "estacion_id": estacion_id,
+                        "temperatura": temperatura,
+                        "humedad": humedad,
+                        "fecha": datetime.now().isoformat()
+                    }
+                    
+                    channel.basic_publish(
+                        exchange='',
+                        routing_key=rabbitmq_queue,
+                        body=json.dumps(log),
+                        properties=pika.BasicProperties(delivery_mode=2)  # Mensaje persistente
+                    )
+                    logger.info(f"📤 Enviado: {log}")
+                    time.sleep(5)
+                    
+                except Exception as e:
+                    logger.error(f"Error generando datos: {e}")
+                    time.sleep(1)
+                    
+        except Exception as e:
+            logger.error(f"Error de conexión a RabbitMQ: {e}")
+            retry += 1
+            if retry < max_retries:
+                logger.info(f"Reintentando en 5 segundos... ({retry}/{max_retries})")
+                time.sleep(5)
+    
+    logger.error(f"Máximo de reintentos alcanzado ({max_retries})")
+
+if __name__ == "__main__":
     try:
-        conn = psycopg2.connect(
-            host=DB_HOST,
-            port=DB_PORT,
-            user=DB_USER,
-            password=DB_PASSWORD,
-            dbname=DB_NAME
-        )
-        cur = conn.cursor()
-        print("Conexión establecida con PostgreSQL", flush=True)
-        break
+        publicar_datos()
+    except KeyboardInterrupt:
+        logger.info("Productor detenido")
     except Exception as e:
-        print(f"Error al conectar a PostgreSQL: {e}. Reintentando en 3 segundos...", flush=True)
-        time.sleep(3)
-
-# Bucle principal de envío de datos
-while True:
-    estacion_id = random.randint(1, 5)
-    temperatura = round(random.uniform(20, 35), 2)
-    humedad = round(random.uniform(30, 80), 2)
-
-    try:
-        cur.execute(
-            "INSERT INTO logs (estacion_id, temperatura, humedad) VALUES (%s, %s, %s)",
-            (estacion_id, temperatura, humedad)
-        )
-        conn.commit()
-        print(f"[Producer] Dato enviado: estacion_id={estacion_id}, temperatura={temperatura}, humedad={humedad}", flush=True)
-    except Exception as e:
-        print(f"[Producer] Error al insertar dato: {e}", flush=True)
-        conn.rollback()  # Reinicia la transacción para poder seguir insertando
-
-    time.sleep(5)  # Esperar 5 segundos antes de enviar el siguiente dato
-
+        logger.error(f"Error fatal: {e}")

@@ -1,0 +1,51 @@
+# Docker Compose Override para desarrollo local
+# Este archivo se aplica automáticamente cuando está presente
+# Úsalo para overrides específicos de tu máquina local
+
+version: '3.8'
+
+services:
+  # Override del Producer para desarrollo
+  producer:
+    # Montaje de código en vivo (hot reload)
+    volumes:
+      - ./producer/producer.py:/app/producer.py
+    # Ambiente de desarrollo
+    environment:
+      PYTHONUNBUFFERED: 1
+      PRODUCER_INTERVAL: 2  # Más rápido en desarrollo
+    # Sin reintentos para ver errores inmediatamente
+    restart: "no"
+
+  # Override del Consumer para desarrollo
+  consumer:
+    # Montaje de código en vivo (hot reload)
+    volumes:
+      - ./consumer/consumer.py:/app/consumer.py
+    # Ambiente de desarrollo
+    environment:
+      PYTHONUNBUFFERED: 1
+    # Sin reintentos para ver errores inmediatamente
+    restart: "no"
+
+  # Override de PostgreSQL para desarrollo
+  postgres:
+    # Port adicional para desarrollo local
+    ports:
+      - "5432:5432"
+    # Logging más detallado
+    environment:
+      # POSTGRES_INITDB_ARGS: "-c log_statement=all"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  # Override de RabbitMQ para desarrollo
+  rabbitmq:
+    # Logs más detallados
+    environment:
+      RABBITMQ_LOGS: "-"
+      RABBITMQ_SASL_LOGS: "-"
+
+volumes:
+  postgres_data:

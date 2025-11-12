@@ -1,50 +1,79 @@
 version: '3.8'
 
+# Sistema de Logs con Arquitectura Productor-Consumidor
+# Documentación: GUIA_USO.md | README.md
+
 services:
+  # Base de Datos PostgreSQL
   postgres:
     image: postgres:16
     container_name: postgres
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin123
-      POSTGRES_DB: weather_db
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: logsdb
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # Message Broker RabbitMQ
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"      # AMQP
+      - "15672:15672"    # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Generador de Datos Meteorológicos
   producer:
     build: ./producer
     container_name: producer
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_USER: admin
-      DATABASE_PASSWORD: admin123
-      DATABASE_NAME: weather_db
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_QUEUE: logs_queue
+    restart: on-failure:5
 
+  # Procesador de Datos
   consumer:
     build: ./consumer
     container_name: consumer
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
-      DATABASE_HOST: postgres
-      DATABASE_PORT: 5432
-      DATABASE_USER: admin
-      DATABASE_PASSWORD: admin123
-      DATABASE_NAME: weather_db
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_QUEUE: logs_queue
+      POSTGRES_HOST: postgres
+      POSTGRES_DB: logsdb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    restart: on-failure:5
 
+# Volúmenes persistentes
 volumes:
   postgres_data:
-
-
-
-
-
-
 
 
 
