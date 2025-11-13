@@ -28,8 +28,8 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: rabbitmq
     ports:
-      - "5672:5672"      # AMQP
-      - "15672:15672"    # Management UI
+      - "5672:5672"      
+      - "15672:15672"    
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -41,7 +41,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Generador de Datos Meteorológicos
+
   producer:
     build: ./producer
     container_name: producer
@@ -55,7 +55,7 @@ services:
       RABBITMQ_QUEUE: logs_queue
     restart: on-failure:5
 
-  # Procesador de Datos
+
   consumer:
     build: ./consumer
     container_name: consumer
@@ -73,7 +73,7 @@ services:
       POSTGRES_PASSWORD: postgres
     restart: on-failure:5
 
-# Volúmenes persistentes
+
 volumes:
   postgres_data:
   rabbitmq_data:
