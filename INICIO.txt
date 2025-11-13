@@ -69,7 +69,7 @@
 ┌─ 🚀 CÓMO COMENZAR (3 OPCIONES) ──────────────────────────────────────────┐
 │                                                                             │
 │  📌 OPCIÓN 1: Script Interactivo (RECOMENDADO)                            │
-│     Windows:     .\init.bat                                               │
+│     Windows:      .\init.bat                                              │
 │     Linux/Mac:   bash init.sh                                             │
 │                                                                             │
 │  📌 OPCIÓN 2: Docker Compose Directo                                      │
