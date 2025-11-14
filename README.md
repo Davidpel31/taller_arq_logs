@@ -1,138 +1,239 @@
-# 📊 Sistema de Logs con Arquitectura Productor-Consumidor
+# Sistema de Logs con Arquitectura Productor-Consumidor
 
 Un sistema distribuido para procesar y almacenar datos meteorológicos en tiempo real usando **RabbitMQ**, **PostgreSQL** y **Docker**.
 
-## 🏗️ Arquitectura
+## Arquitectura
 
 ```
-┌─────────────────────────────────────────────┐
-│         Docker Compose Environment          │
-├──────────────────┬──────────────┬───────────┤
-│   PRODUCER       │   RABBITMQ   │  CONSUMER │
-│   (Python)       │   (Broker)   │ (Python)  │
-│   Genera datos   │   logs_queue │ Procesa   │
-│   cada 5seg      │              │ e inserta │
-└──────────┬───────┴────────┬─────┴───────┬───┘
-           │                │             │
-           └────────────────┴─────────────┘
-                     │
-                     ▼
-              ┌─────────────┐
-              │ PostgreSQL  │
-              │   logsdb    │
-              │   (logs)    │
-              └─────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                      Docker Compose Stack                     │
+├──────────────────────┬──────────────────────┬─────────────────┤
+│      PRODUCER        │      RABBITMQ        │    CONSUMER     │
+│    (Python + Pika)   │   (Broker AMQP)      │ (3 módulos)     │
+│  Genera datos        │  Exchange: weather   │                 │
+│  cada 5 segundos     │  Queue: logs_queue   │                 │
+└─────────────┬────────┴───────────┬──────────┴───────────────┘
+              │                    │
+              └────────────────────┘
+                       │
+                       ▼
+              ┌──────────────────────┐
+              │     PostgreSQL       │
+              │      logsdb          │
+              │  Tabla: weather_logs │
+              └──────────────────────┘
+
 ```
+## Arquitectura del Consumer 
 
-## 🎯 Características
+´´´sql
+consumer/
+│
+├── consumer_validacion.py   
+├── consumer_bd.py           
+└── consumer_main.py         
+´´´
 
-- ✅ **Desacoplamiento**: Producer y Consumer independientes
-- ✅ **Escalabilidad**: Múltiples consumers pueden procesadores
-- ✅ **Persistencia**: Datos almacenados en PostgreSQL
-- ✅ **Confiabilidad**: Reintentos automáticos y healthchecks
-- ✅ **Logging**: Trazabilidad completa de operaciones
-- ✅ **Validación**: Validación de datos antes de procesar
+**Resumen de Métricas de Rendimiento del Sistema**
 
-## 📋 Requisitos
+El sistema Productor–Consumidor incluye métricas que permiten evaluar la velocidad, estabilidad y calidad del flujo de datos desde el Producer hasta PostgreSQL. Estas métricas ayudan a monitorear en tiempo real el comportamiento del sistema y detectar fallos.
+
+1. **Métricas del Producer**
+
+El Producer envía datos meteorológicos a RabbitMQ y genera las siguientes métricas:
+
+**Mensajes enviados**
+
+Cantidad total de mensajes publicados correctamente.
+
+**Tiempo de publicación**
+
+Tiempo que tarda en enviar un mensaje al broker.
+
+**Velocidad (msg/s)**
+
+Mensajes enviados por segundo, calculados cada 30 segundos.
+
+**Errores de validación**
+
+Cuando los datos aleatorios quedan fuera de los rangos establecidos, el Producer los descarta y registra el error.
+
+2. **Métricas del Consumer**
+
+El Consumer está separado en tres componentes: validación, base de datos y procesamiento principal. El módulo principal (consumer_main.py) genera métricas cada 30 segundos:
+
+**messages_received**
+
+Número total de mensajes recibidos desde RabbitMQ.
+
+ **db_ok**
+
+Inserciones exitosas en PostgreSQL.
+
+ **db_errors**
+
+Errores al guardar datos (cuando la BD falla o recibe información incorrecta).
+
+**json_errors**
+
+Errores al decodificar o validar JSON.
+
+**msg/s**
+
+Velocidad real del Consumer procesando mensajes.
+
+**tiempo_promedio_proc**
+
+Tiempo promedio de procesamiento por mensaje: validación + inserción + ACK.
+
+
+**Características Principales**
+
+**- Consumer dividido**
+
+consumer_main.py → consume mensajes y controla el flujo
+
+consumer_validacion.py → valida JSON
+
+consumer_bd.py → conecta e inserta en PostgreSQL
+
+- Mensajería confiable con RabbitMQ
+
+- Persistencia real en PostgreSQL
+
+- Todo orquestado con Docker
+
+- Métricas de rendimiento en Producer y Consumer
+
+- Reintentos automáticos + Healthchecks
+
+- Sistema completamente validado
+
+## Requisitos
 
 - Docker Desktop 4.0+
 - 2GB RAM disponible
 - Puertos libres: 5432, 5672, 15672
 
-## 🚀 Inicio Rápido
+**Cómo ejecutar el sistema**
 
-### 1. Levantar el sistema
+**1. Detener y limpiar todo**
+docker compose down -v
 
-```bash
-docker compose up -d
-```
+**2. Reconstruir el sistema COMPLETO**
+docker compose up --build -d
 
-### 2. Verificar servicios
-
-```bash
+**3. Verificar que todo está corriendo**
 docker ps
-```
 
-### 3. Acceder a RabbitMQ
+**4. Ver logs del consumer**
+docker compose logs -f consumer
 
-```
+
+
+
+**Acceder a RabbitMQ**
 http://localhost:15672
 usuario: guest
 contraseña: guest
-```
 
-### 4. Consultar datos en PostgreSQL
 
-```bash
+Podrás ver:
+
+- Cola: logs_queue
+
+- DLX: weather.dlx
+
+- Cola secundaria: logs_dlx
+
+- Tasa de mensajes (msg/s)
+
+- Consumers activos
+
+**Consultar datos en PostgreSQL**
 docker exec -it postgres psql -U postgres -d logsdb
 
-# Ver datos
-SELECT * FROM weather_logs ORDER BY id DESC LIMIT 10;
-```
 
-## 📁 Estructura del Proyecto
+**Ejemplo:**
+´´´sql
+
+SELECT * FROM weather_logs ORDER BY id DESC LIMIT 10;
+´´´
+
+## Estructura del Proyecto
 
 ```
 taller_arq_logs/
-├── docker-compose.yml          # Orquestación de servicios
-├── GUIA_USO.md                # Documentación detallada
-├── README.md                  # Este archivo
-├── .gitignore                 # Archivos a ignorar en Git
+├── docker-compose.yml
+├── README.md
 │
 ├── producer/
-│   ├── producer.py            # Generador de datos
-│   ├── Dockerfile             # Imagen Docker
-│   └── requirements.txt        # Dependencias Python
+│   ├── producer.py
+│   ├── requirements.txt
+│   └── Dockerfile
 │
 ├── consumer/
-│   ├── consumer.py            # Procesador de datos
-│   ├── Dockerfile             # Imagen Docker
-│   └── requirements.txt        # Dependencias Python
+│   ├── consumer_validacion.py
+│   ├── consumer_bd.py
+│   ├── consumer_main.py
+│   ├── requirements.txt
+│   └── Dockerfile
 │
 └── db/
-    ├── init.sql               # Script de inicialización
-    └── init-scripts/          # Scripts adicionales SQL
-        ├── 01-create-tables.sql
-        └── 02-insert-data.sql
+    ├── init.sql
+    └── migrations/
+
 ```
 
-## 🔄 Flujo de Datos
+## Flujo de Datos
 
-1. **Producer**: Genera datos meteorológicos cada 5 segundos
-   - Estación (1-5)
-   - Temperatura (15-35°C)
-   - Humedad (40-90%)
-   - Timestamp
+**Producer**
 
-2. **RabbitMQ**: Encola los mensajes JSON
+- Envía mensajes cada 5 segundos
 
-3. **Consumer**: Procesa y valida mensajes
+- Datos meteorológicos simulados
 
-4. **PostgreSQL**: Almacena en tabla `weather_logs`
+**RabbitMQ**
 
-## 🛠️ Mejoras Implementadas
+- Recibe, enruta y almacena temporalmente mensajes
+
+- DLX para mensajes inválidos
+
+**Consumer**
+
+- **consumer_validacion.py** → valida JSON y rangos
+
+- **consumer_bd.py**→ inserta en PostgreSQL
+
+- **consumer_main.py** → métricas + ACK manual
+
+**PostgreSQL**
+
+- Guarda datos en la tabla weather_logs
+
+##  Mejoras Implementadas
 
 ### Consumer
-- ✅ Conexión persistente (no reconecta cada mensaje)
-- ✅ Logging estructurado
-- ✅ Manejo de errores mejorado
-- ✅ QoS configurado (prefetch_count=1)
-- ✅ Validación de datos completos
+- Conexión persistente (no reconecta cada mensaje)
+- Logging estructurado
+- Manejo de errores mejorado
+- QoS configurado (prefetch_count=1)
+- Validación de datos completos
 
 ### Producer
-- ✅ Validación de datos antes de enviar
-- ✅ Mensajes persistentes en RabbitMQ
-- ✅ Logging de todas las operaciones
-- ✅ Reintentos automáticos
-- ✅ Eliminada dependencia innecesaria de PostgreSQL
+- Validación de datos antes de enviar
+- Mensajes persistentes en RabbitMQ
+- Logging de todas las operaciones
+- Reintentos automáticos
+- Eliminada dependencia innecesaria de PostgreSQL
 
 ### Infraestructura
-- ✅ Healthchecks en PostgreSQL y RabbitMQ
-- ✅ Reintentos automáticos (on-failure:5)
-- ✅ Imagen Alpine para RabbitMQ (más ligera)
-- ✅ Depends_on con condiciones de salud
+- Healthchecks en PostgreSQL y RabbitMQ
+- Reintentos automáticos (on-failure:5)
+- Imagen Alpine para RabbitMQ (más ligera)
+- Depends_on con condiciones de salud
 
-## 📊 Consultas SQL Útiles
+## Consultas SQL Útiles
 
 ### Últimos registros
 ```sql
@@ -160,28 +261,9 @@ WHERE fecha BETWEEN NOW() - INTERVAL '1 hour' AND NOW()
 ORDER BY fecha DESC;
 ```
 
-## 🐛 Troubleshooting
 
-### Los contenedores no inician
-```bash
-docker compose logs -f
-```
 
-### Resetear todo
-```bash
-docker compose down -v
-docker compose up --build -d
-```
-
-### Ver logs de cada servicio
-```bash
-docker logs -f producer
-docker logs -f consumer
-docker logs -f postgres
-docker logs -f rabbitmq
-```
-
-## 🔗 Puertos y Accesos
+## Puertos y Accesos
 
 | Servicio | Puerto | Acceso |
 |----------|--------|--------|
@@ -189,33 +271,33 @@ docker logs -f rabbitmq
 | RabbitMQ AMQP | 5672 | localhost:5672 |
 | RabbitMQ Web | 15672 | http://localhost:15672 |
 
-## 📝 Credenciales por Defecto
+## Credenciales por Defecto
 
 | Servicio | Usuario | Contraseña |
 |----------|---------|-----------|
 | PostgreSQL | postgres | postgres |
 | RabbitMQ | guest | guest |
 
-## 🚦 Estado de Salud
+## Estado de Salud
 
 Los servicios incluyen healthchecks automáticos:
 
 ```bash
-# Ver estado de salud
+
 docker ps --format "table {{.Names}}\t{{.Status}}"
 ```
 
-## 📚 Recursos Adicionales
+## Recursos Adicionales
 
 - [RabbitMQ Docs](https://www.rabbitmq.com/documentation.html)
 - [PostgreSQL Docs](https://www.postgresql.org/docs/)
 - [Docker Compose Docs](https://docs.docker.com/compose/)
 - [pika (Python RabbitMQ)](https://pika.readthedocs.io/)
 
-## 📄 Licencia
+## Licencia
 
 Este proyecto es de código abierto.
 
-## ✉️ Autor
+## Autor
 
 **David Pelaez** - [GitHub](https://github.com/Davidpel31)
