@@ -1,11 +1,10 @@
-FROM python:3.11
+FROM python:3.10
 
 WORKDIR /app
 
 COPY requirements.txt .
-
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY consumer.py .
+COPY . .
 
-CMD ["python", "consumer.py"]
+CMD ["python3", "consumer_main.py"]

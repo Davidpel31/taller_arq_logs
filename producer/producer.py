@@ -52,7 +52,7 @@ def log_metrics():
 
     logger.info(
         (
-            "📊 [MÉTRICAS PRODUCER] msgs_enviados=%d | msg/s=%.2f | "
+            "[MÉTRICAS PRODUCER] msgs_enviados=%d | msg/s=%.2f | "
             "tiempo_promedio_publicación=%.4fs | "
             "errores_validación=%d | errores_publicación=%d | "
             "errores_conexión=%d | reintentos=%d | tiempo_total=%.1fs"

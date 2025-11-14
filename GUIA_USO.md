@@ -1,6 +1,6 @@
-# 📚 Guía de Uso - Sistema de Logs con RabbitMQ y PostgreSQL
+# Guía de Uso - Sistema de Logs con RabbitMQ y PostgreSQL
 
-## ⚠️ Requisitos Previos
+
 
 - **Docker Desktop** instalado y ejecutándose
 - **Git** (opcional)
@@ -8,9 +8,9 @@
 
 ---
 
-## 🚀 Inicio Rápido
+## Inicio Rápido
 
-### 1️⃣ Levantar todos los servicios
+### Levantar todos los servicios
 
 Desde la carpeta raíz del proyecto (`C:\taller_arq_logs`):
 
@@ -19,10 +19,10 @@ docker compose up -d
 ```
 
 **Esto levantará:**
-- 🐘 PostgreSQL (puerto 5432)
-- 🐇 RabbitMQ (puertos 5672, 15672)
-- 📤 Producer (generador de datos)
-- 📥 Consumer (procesador de datos)
+-  PostgreSQL (puerto 5432)
+- RabbitMQ (puertos 5672, 15672)
+- Producer (generador de datos)
+- Consumer (procesador de datos)
 
 **Si hiciste cambios en el código, usa:**
 ```bash
@@ -45,23 +45,23 @@ Deberías ver 4 contenedores corriendo:
 
 ---
 
-## 3️⃣ Panel de RabbitMQ
+## Panel de RabbitMQ
 
-📍 **URL:** http://localhost:15672
+ **URL:** http://localhost:15672
 
 **Credenciales:**
 - Usuario: `guest`
 - Contraseña: `guest`
 
 **Qué puedes ver ahí:**
-- 📊 Exchanges (donde el productor publica)
-- 📋 Queues (colas de mensajes)
-- 🔗 Bindings (conexiones entre exchanges y colas)
-- 📈 Estadísticas de mensajes procesados
+- Exchanges (donde el productor publica)
+- Queues (colas de mensajes)
+- Bindings (conexiones entre exchanges y colas)
+- Estadísticas de mensajes procesados
 
 ---
 
-## 4️⃣ Acceder a PostgreSQL
+##  Acceder a PostgreSQL
 
 **Conexión desde DBeaver o cualquier cliente SQL:**
 
@@ -80,7 +80,7 @@ docker exec -it postgres psql -U postgres -d logsdb
 
 ---
 
-## 5️⃣ Consultar datos en PostgreSQL
+## Consultar datos en PostgreSQL
 
 ### Conectarse al contenedor:
 ```bash
@@ -116,7 +116,7 @@ ORDER BY estacion_id;
 
 ---
 
-## 6️⃣ Ver los logs de los servicios
+## Ver los logs de los servicios
 
 ### Logs en tiempo real del productor:
 ```bash
@@ -140,7 +140,7 @@ docker logs -f rabbitmq
 
 ---
 
-## 7️⃣ Detener los servicios
+## Detener los servicios
 
 ### Detener sin eliminar volúmenes (datos persisten):
 ```bash
@@ -154,36 +154,30 @@ docker compose down -v
 
 ---
 
-## 🔍 Troubleshooting
+## Troubleshooting
 
-### ❌ Los contenedores no inician
+### Los contenedores no inician
 ```bash
-# Ver logs detallados
+
 docker logs <nombre_contenedor>
 
-# Reconstruir y limpiar
 docker compose down -v
 docker compose up --build -d
 ```
 
-### ❌ Errores de conexión a PostgreSQL
+### Errores de conexión a PostgreSQL
 ```bash
-# Verificar que PostgreSQL está listo
+
 docker exec postgres pg_isready -U postgres
 
-# Esperar 10-15 segundos después de levantar
-```
-
-### ❌ No ves mensajes en la cola
 ```bash
-# Verificar que el producer está corriendo
+
 docker logs producer
 
-# Verificar que el consumer está corriendo
 docker logs consumer
 ```
 
-### ❌ Deseas resetear todo
+### Deseas resetear todo
 ```bash
 docker compose down -v
 docker compose up --build -d
@@ -191,7 +185,7 @@ docker compose up --build -d
 
 ---
 
-## 📊 Arquitectura del Sistema
+## Arquitectura del Sistema
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -217,7 +211,7 @@ docker compose up --build -d
 
 ---
 
-## 🔄 Flujo de Datos
+## Flujo de Datos
 
 1. **Producer** genera datos meteorológicos cada 5 segundos:
    - `estacion_id`: 1-5
@@ -236,23 +230,17 @@ docker compose up --build -d
 
 ---
 
-## 📝 Mejoras Implementadas
+## Mejoras Implementadas
 
-✅ **Healthchecks** en Docker Compose
-✅ **Logging estructurado** en Producer y Consumer
-✅ **Conexión persistente** a PostgreSQL (sin reconectar en cada mensaje)
-✅ **Validación de datos** en Producer
-✅ **Reintentos automáticos** con backoff
-✅ **Mensajes persistentes** en RabbitMQ
-✅ **QoS (Quality of Service)** en Consumer
-✅ **Manejo de errores** mejorado
+**Healthchecks** en Docker Compose
+**Logging estructurado** en Producer y Consumer
+**Conexión persistente** a PostgreSQL (sin reconectar en cada mensaje)
+**Validación de datos** en Producer
+ **Reintentos automáticos** con backoff
+**Mensajes persistentes** en RabbitMQ
+**QoS (Quality of Service)** en Consumer
+ **Manejo de errores** mejorado
 
----
 
-## 📧 Soporte
 
-Si tienes problemas, verifica:
-1. Docker Desktop está ejecutándose
-2. Los puertos 5432, 5672, 15672 están disponibles
-3. Hay al menos 2GB de RAM libre
-4. Ejecutaste `docker compose up -d` desde la carpeta correcta
+
