@@ -94,12 +94,12 @@ docker exec -it postgres psql -U postgres -d logsdb
 
 ### Ver últimos 10 registros:
 ```sql
-SELECT * FROM logs ORDER BY id DESC LIMIT 10;
+SELECT * FROM weather_logs ORDER BY id DESC LIMIT 10;
 ```
 
 ### Contar registros insertados:
 ```sql
-SELECT COUNT(*) FROM logs;
+SELECT COUNT(*) FROM weather_logs;
 ```
 
 ### Ver estadísticas por estación:
@@ -109,7 +109,7 @@ SELECT
     COUNT(*) as registros,
     AVG(temperatura) as temp_promedio,
     AVG(humedad) as humedad_promedio
-FROM logs
+FROM weather_logs
 GROUP BY estacion_id
 ORDER BY estacion_id;
 ```

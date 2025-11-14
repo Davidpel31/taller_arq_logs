@@ -138,16 +138,16 @@ psql:
 
 psql-list:
 	@echo "📋 Últimos 10 registros:"
-	docker exec postgres psql -U postgres -d logsdb -c "SELECT * FROM logs ORDER BY id DESC LIMIT 10;"
+	docker exec postgres psql -U postgres -d logsdb -c "SELECT * FROM weather_logs ORDER BY id DESC LIMIT 10;"
 
 psql-count:
 	@echo "📊 Total de registros:"
-	docker exec postgres psql -U postgres -d logsdb -c "SELECT COUNT(*) as total FROM logs;"
+	docker exec postgres psql -U postgres -d logsdb -c "SELECT COUNT(*) as total FROM weather_logs;"
 
 psql-stats:
 	@echo "📈 Estadísticas por estación:"
 	docker exec postgres psql -U postgres -d logsdb -c \
-		"SELECT estacion_id, COUNT(*) as registros, AVG(temperatura) as temp_promedio, AVG(humedad) as humedad_promedio FROM logs GROUP BY estacion_id ORDER BY estacion_id;"
+		"SELECT estacion_id, COUNT(*) as registros, AVG(temperatura) as temp_promedio, AVG(humedad) as humedad_promedio FROM weather_logs GROUP BY estacion_id ORDER BY estacion_id;"
 
 # 🐇 RABBITMQ
 rabbitmq-ui:
