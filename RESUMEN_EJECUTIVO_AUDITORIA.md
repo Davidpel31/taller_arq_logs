@@ -98,16 +98,17 @@ channel.basic_publish(exchange='weather.data', routing_key='weather.estacion.1')
 
 ### 2. Base de Datos Muy Simple
 ```sql
--- ACTUAL
-CREATE TABLE logs (id, estacion_id, temperatura, humedad, fecha)
-
--- DEBERÍA SER (caso de estudio pide weather_logs)
-CREATE TABLE weather_logs (
-    id, estacion_id, temperatura, humedad, fecha,
-    CONSTRAINT chk_temperatura CHECK (temperatura BETWEEN -40 AND 50),
-    CONSTRAINT chk_humedad CHECK (humedad BETWEEN 0 AND 100)
+-- ESQUEMA RECOMENDADO
+CREATE TABLE IF NOT EXISTS weather_logs (
+   id BIGSERIAL PRIMARY KEY,
+   estacion_id INT NOT NULL,
+   temperatura DECIMAL(5,2) NOT NULL,
+   humedad DECIMAL(5,2) NOT NULL,
+   fecha TIMESTAMP NOT NULL,
+   CONSTRAINT chk_temperatura CHECK (temperatura BETWEEN -40 AND 50),
+   CONSTRAINT chk_humedad CHECK (humedad BETWEEN 0 AND 100)
 );
-CREATE INDEX idx_weather_logs_estacion_id ON weather_logs(estacion_id);
+CREATE INDEX IF NOT EXISTS idx_weather_logs_estacion_id ON weather_logs(estacion_id);
 ```
 **Impacto:** Sin validación en BD, queries lentas sin índices  
 **Esfuerzo para fijar:** 30 minutos

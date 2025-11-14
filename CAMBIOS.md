@@ -150,7 +150,7 @@ bash init.sh
 ### Verificar Datos
 ```bash
 docker exec -it postgres psql -U postgres -d logsdb
-SELECT COUNT(*) FROM logs;
+SELECT COUNT(*) FROM weather_logs;
 ```
 
 ### Acceder a RabbitMQ

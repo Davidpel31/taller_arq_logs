@@ -104,7 +104,7 @@
 │                                                                             │
 │  📥 Consumer                                                               │
 │     Procesa mensajes de la cola                                           │
-│     Inserta en tabla: logs                                                │
+│     Inserta en tabla: weather_logs                                        │
 │     Ver logs: docker logs -f consumer                                     │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -121,8 +121,8 @@
 │      docker exec -it postgres psql -U postgres -d logsdb                 │
 │                                                                             │
 │  4️⃣  Ver datos en la tabla                                                │
-│      SELECT COUNT(*) FROM logs;                                           │
-│      SELECT * FROM logs ORDER BY id DESC LIMIT 10;                       │
+│      SELECT COUNT(*) FROM weather_logs;                                   │
+│      SELECT * FROM weather_logs ORDER BY id DESC LIMIT 10;               │
 │                                                                             │
 │  5️⃣  Acceder a RabbitMQ                                                   │
 │      http://localhost:15672 (guest/guest)                                │

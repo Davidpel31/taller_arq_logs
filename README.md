@@ -67,7 +67,7 @@ contraseña: guest
 docker exec -it postgres psql -U postgres -d logsdb
 
 # Ver datos
-SELECT * FROM logs ORDER BY id DESC LIMIT 10;
+SELECT * FROM weather_logs ORDER BY id DESC LIMIT 10;
 ```
 
 ## 📁 Estructura del Proyecto
@@ -108,7 +108,7 @@ taller_arq_logs/
 
 3. **Consumer**: Procesa y valida mensajes
 
-4. **PostgreSQL**: Almacena en tabla `logs`
+4. **PostgreSQL**: Almacena en tabla `weather_logs`
 
 ## 🛠️ Mejoras Implementadas
 
@@ -136,7 +136,7 @@ taller_arq_logs/
 
 ### Últimos registros
 ```sql
-SELECT * FROM logs ORDER BY id DESC LIMIT 10;
+SELECT * FROM weather_logs ORDER BY id DESC LIMIT 10;
 ```
 
 ### Datos por estación
@@ -148,14 +148,14 @@ SELECT
     MIN(temperatura) as temp_min,
     MAX(temperatura) as temp_max,
     AVG(humedad) as humedad_promedio
-FROM logs
+FROM weather_logs
 GROUP BY estacion_id
 ORDER BY estacion_id;
 ```
 
 ### Datos en rango de tiempo
 ```sql
-SELECT * FROM logs 
+SELECT * FROM weather_logs 
 WHERE fecha BETWEEN NOW() - INTERVAL '1 hour' AND NOW()
 ORDER BY fecha DESC;
 ```

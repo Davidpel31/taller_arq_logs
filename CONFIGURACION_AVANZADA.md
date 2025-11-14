@@ -25,7 +25,7 @@ TEMP_MAX=35
 HUMIDITY_MIN=40
 HUMIDITY_MAX=90
 STATION_MIN=1
-STATION_MAX=5
+docker exec postgres psql -U postgres -d logsdb -c "SELECT COUNT(*) FROM weather_logs;" --interval 1
 
 # RabbitMQ
 RABBITMQ_HOST=rabbitmq
@@ -452,7 +452,7 @@ watch -n 1 'docker stats --no-stream'
 docker logs -f consumer
 
 # Terminal 3: Consultas a BD
-docker exec postgres psql -U postgres -d logsdb -c "SELECT COUNT(*) FROM logs;" --interval 1
+docker exec postgres psql -U postgres -d logsdb -c "SELECT COUNT(*) FROM weather_logs;" --interval 1
 ```
 
 ---

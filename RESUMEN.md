@@ -128,7 +128,7 @@ docker logs -f consumer
 docker exec -it postgres psql -U postgres -d logsdb
 
 # Ver datos
-SELECT COUNT(*) FROM logs;
+SELECT COUNT(*) FROM weather_logs;
 ```
 
 ### Acceder a RabbitMQ
