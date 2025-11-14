@@ -218,4 +218,4 @@ Este proyecto es de código abierto.
 
 ## ✉️ Autor
 
-**David Pelecha** - [GitHub](https://github.com/Davidpel31)
+**David Pelaez** - [GitHub](https://github.com/Davidpel31)
